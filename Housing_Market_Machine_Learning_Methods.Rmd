@@ -1,0 +1,341 @@
+---
+title: "Statistics Group Project"
+author: "Lia S., Francisco Z., Hygen D."
+date: "12/6/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+# Introduction 
+
+The housing market is a market that everyone has to deal with in their lifetime in one way or another; everyone needs a place to live. Individuals that deal in the housing market are primarily concerned with the value of the home itself, whether that is the price they have to pay for it or the price they can sell it for. To illustrate this consider that you’re any of the following: realtor, developer, flipper, seller, buyer, investor, financial institution, or even a renter. Depending on which category of individuals you belong to you don’t want to overpay for a house, or be paid less than the value of your home. Similarly, homes make up a large portion of households net worth and thus need to be valued correctly to ascertain the true value. According to a report written in 2019 by the Congressional Research Service, “As of 2018, owner-occupied real estate accounted for about a quarter of households’ net worth…”                
+
+The current estimated home value of all homes in the United States combined is roughly “$33 trillion dollars” (World Property Journal, 2020). A market this large is not independent of other markets. Likely anything that affects the housing market will have ripple effects into other markets and the lives of the american population. The world experienced this first-hand in 2007 when the housing bubble exploded in the United States bringing about what was coined as the “Great Recession”, and subsequently nearly brought down the financial system to its knees. The ramifications were so severe that the US government had to intervene in several ways ranging from bailouts of financial institutions to passing the Dodd-Frank Wall Street Reform and Consumer Protection Act. To put this in perspective consider the graphs on the following page, as can be seen household value dropped significantly (nearly 33%) during the great recession.              
+
+The great recession occurred for a variety of reasons, however three reasons are the main driver behind the housing market boom and subsequent crash.            
+1. Rising home prices             
+2. Poor lending practices             
+3. Increase in subprime mortgages             
+It can be viewed in the following. Home prices were steadily rising in the years leading to the great recession. This caused houses to be viewed as one of the safest investment decisions for stakeholders; everyone expected home prices (aka the value of their investment) to continue to rise or at the worst level off. This belief caused many financial institutions to provide mortgages to individuals who they wouldn’t normally give them to (the thought was if they defaulted on the mortgage, the bank would foreclose the home and sell it on the market to recoup the rest of the mortgage). This lending practice resulted in high credit risk individuals having mortgage debt they would not be able to afford once the interest rates changed (Adjustable Rate Mortgages - fixed interest rate initially, but changes to market rate at a specified time in the contract), named “subprime mortgages”. Once the interest rates on these mortgages increased and the individuals defaulted, the housing market became flooded with foreclosed homes driving down the price. This caused the housing bubble to burst and financial institutions that were heavily leveraged with these mortgages found themselves in severe financial trouble. It was so severe that Lehman brothers had to file bankruptcy while other financial institutions had to be bailed out by the US government. 
+
+
+
+```{r PDF, fig.align='center', fig.cap=c("Caption"), echo = FALSE}
+#knitr::include_graphics("HousingGraphs.pdf")
+```
+
+
+# Goal 
+
+The goal of our research is to analyze a housing data set using several statistical methods with the objective of finding a research method that will provide the most accurate method of predicting home prices so that stakeholders can make the best decision when it comes to their home/investment. The hope in doing this is to not only provide individuals with a tool to make better decisions regarding purchasing/selling houses, but also to allow individuals to see if the housing market is experiencing a similar situation that occurred before the great recession. If stakeholders are able to see that the prices of homes are overvalued (price higher than actual worth) they will be able to avoid investing in a market that is likely to burst and thus avoid another great recession. 
+
+# Data Structure 
+
+For this research we obtained our data set from Kaggle, specifically our data set is the Ames Housing Data set. This data set is very similar to the Boston Housing Data except that it goes into more depth by providing more descriptive statistics about the homes. Essentially it allows us to take into account more variables that could affect home price. The original data set contained 2919 observations of residential property sales that occurred from 2006 to 2010. As stated earlier this data set contains many predictors/variables, 79 predictor variables to be exact. They are categorized as follows:                                           
+
+1. 23 nominal variables           
+      + These variables identify the type of home, garage, materials used, and environment conditions to name a few           
+2. 23 ordinal variables           
+      + Used to rate the quality of items on the property           
+3. 14 discrete variables            
+      + Quantify the number of items occurring within the house (number of kitchens, bedrooms, bathrooms, etc.)       
+4. 20 continuous variables            
+      + Relate to various area dimensions (basement, porches, main living area, etc.)       
+      
+      
+
+We import our data set to the environment and then we run dim and name function to verify the data and see the names of the columns. We can see that the ID is a column within the data set that we do not need. In reality, the ID of a home is not something that would affect the price of the home so we remove it from the data sets. From Kaggle there were two data sets, one for testing and one for training. However we combined those data sets into one and removed the ID variable from them. The resulting data set is named "house". 
+
+```{r Data_Exploration, echo=FALSE, results='hide', message=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+
+library(ISLR)
+library(stats)
+library(dplyr)
+house <- read.csv("C:/Users/ltyle/Documents/UTSA/STA-6923/Project/house.csv")
+dim(house)
+names(house)
+
+```
+
+After combining the two data sets we need to make sure that there is no missing data. Below we identify which columns have  "NA"/missing values and remove them. The reasoning behind this is that the statistical methods will not operate correctly if there is missing data. We did find values for predictors which contained missing values so we decided to operate in two ways.        
+
+1. If the data column contained less than 10% missing values then we input the average value of that column in its place. We need as many observations as possible for our statistical methods to be accurate in predicting future prices so we don't want to remove any data unless absolutely necessary. That being said we don't want to influence the data in a way that alters/misrepresents the actual value, so we decided to input the mean/average value of that column in place of the missing values.        
+2. The other method we enacted was to remove a column/predictor variable from the data set if it had 10% or higher missing data from the total number of observations. We decided that if a column had more than 10% missing data, entering the average or mean for that column would influence our data set and subsequently the statistical methods we wish to use, that in turn would result in analysis that doesn't represent the true world so to speak. 
+```{r Missing_Values, echo=FALSE, results='hide', message=FALSE}
+summary(is.na(house))
+house$BsmtFinSF1[which(is.na(house$BsmtFinSF1))]<-441.4
+house$BsmtFinSF1[which(is.na(house$BsmtFinSF1))]<-441.4
+house$LotArea[which(is.na(house$LotArea))]<-10168
+house$BsmtFinSF1[which(is.na(house$BsmtFinSF1))]<-441.4
+house$BsmtHalfBath[which(is.na(house$BsmtHalfBath))]<-2
+house$HalfBath[which(is.na(house$HalfBath))]<-3.3803
+house$BsmtFullBath[which(is.na(house$BsmtFullBath))]<-.4299
+house$MasVnrArea[which(is.na(house$MasVnrArea))]<-0
+```
+
+Further conducting our analysis we noticed that several of the predictors had values that actually were "NA". This doesn't mean that there was missing data, but rather that the home physically did not contain what the predictor variable was taking into account. For example, if the "Fence" predictor variable had "NA" it doesn't mean the data is missing, but rather the property didn't have a fence. To avoid confusion we changed these "NA" values to "None" to better indicate the home doesn't have the object the variable is taking into account. 
+```{r None_Values, echo=FALSE}
+house$Fence[which(is.na(house$Fence))]<-"None"
+house$MSZoning[which(is.na(house$MSZoning))]<-"None"
+house$Utilities[which(is.na(house$Utilities))]<-"None"
+house$BsmtCond[which(is.na(house$BsmtCond))]<-"None"
+house$BsmtExposure[which(is.na(house$BsmtExposure))]<-"None"
+house$BsmtFinType1[which(is.na(house$BsmtFinType1))]<-"None"
+house$Electrical[which(is.na(house$Electrical))]<-"None"
+house$Functional[which(is.na(house$Functional))]<-"None"
+house$GarageFinish[which(is.na(house$GarageFinish))]<-"None"
+house$GarageCond[which(is.na(house$GarageCond))]<-"None"
+house$SaleType[which(is.na(house$SaleType))]<-"None"
+```
+
+After initial review of the data description it was determined that the set of variables below will provide duplicate information. Thus these variables will be remove from the data set because leaving them in would result in issues with our methods later on. Specifically, a duplication of data that could result in the analysis methods incorrectly analyzing the true effect a predictor would have on sales price. The columns we decided to remove are as follows: 
+
+* GarageYrBlt 
+* TotalBsmtSF
+* Exterior1st
+* GarageType
+* TotRmsAbvGrd
+* GarageArea
+* GarageCars
+* Alley
+* LandContour
+* LotConfig
+* LandSlope
+* Condition2
+* OverallQual
+* RoofMatl
+* Exterior2nd
+* MasVnrType
+* ExterQual
+* BsmtQual
+* BsmtFinType2
+* HeatingQC
+* GarageQual
+* MiscFeature
+* BsmtFinSF2
+* BsmtUnfSF
+* LowQualFinSF
+* KitchenQual
+* FireplaceQu
+* X3SsnPorch
+* PoolQC
+* LotFrontage
+
+```{r Duplicate_Columns, echo=FALSE}
+house<-dplyr::select(house, -"GarageYrBlt")
+house<-dplyr::select(house, -"TotalBsmtSF")
+house<-dplyr::select(house, -"Exterior1st")
+house<-dplyr::select(house, -"GarageType")
+house<-dplyr::select(house, -"TotRmsAbvGrd")
+house<-dplyr::select(house, -"GarageArea")
+house<-dplyr::select(house, -"GarageCars")
+house<-dplyr::select(house, -"Alley")
+house<-dplyr::select(house, -"LandContour")
+house<-dplyr::select(house, -"LotConfig")
+house<-dplyr::select(house, -"LandSlope")
+house<-dplyr::select(house, -"Condition2")
+house<-dplyr::select(house, -"OverallQual")
+house<-dplyr::select(house, -"RoofMatl")
+house<-dplyr::select(house, -"Exterior2nd")
+house<-dplyr::select(house, -"MasVnrType")
+house<-dplyr::select(house, -"ExterQual")
+house<-dplyr::select(house, -"BsmtQual")
+house<-dplyr::select(house, -"BsmtFinType2")
+house<-dplyr::select(house, -"HeatingQC")
+house<-dplyr::select(house, -"GarageQual")
+house<-dplyr::select(house, -"MiscFeature")
+house<-dplyr::select(house, -"BsmtFinSF2")
+house<-dplyr::select(house, -"BsmtUnfSF")
+house<-dplyr::select(house, -"LowQualFinSF")
+house<-dplyr::select(house, -"KitchenQual")
+house<-dplyr::select(house, -"FireplaceQu")
+house<-dplyr::select(house, -"X3SsnPorch")
+house<-dplyr::select(house, -"PoolQC")
+house<-dplyr::select(house, -"LotFrontage")
+```
+
+Continuing the initial review of variable, it was determined that these variables are categorical and need to be set to factors. The reason this is necessary is because not all variables are continuous. What this means is that these non-continuous variables can be thought of as area, for example the MSZoning variable identifies the general zoning classification of the sale, ranging from agricultural, to commercial, to industrial, etc. That being said a zoning area is either one or the other, so we have to factor these variables so that the statistical methods will understand this and treat each variable accordingly. 
+``` {R Factoring_Variables, echo=FALSE}
+#House$MSSub<-as.factor(house$MSSubClass)
+house$MSZoning = as.factor(house$MSZoning)
+house$Street = as.factor((house$Street))
+house$LotShape = as.factor(house$LotShape)
+house$Utilities = as.factor(house$Utilities)
+house$Neighborhood = as.factor(house$Neighborhood)
+house$Condition1 = as.factor(house$Condition1)
+house$BldgType = as.factor(house$BldgType)
+house$HouseStyle = as.factor(house$HouseStyle)
+house$OverallCond = as.factor(house$OverallCond)
+house$RoofStyle = as.factor(house$RoofStyle)
+house$ExterCond = as.factor(house$ExterCond)
+house$Foundation = as.factor(house$Foundation)
+house$BsmtCond = as.factor(house$BsmtCond)
+house$BsmtExposure = as.factor(house$BsmtExposure)
+house$BsmtFinType1 = as.factor(house$BsmtFinType1)
+house$Heating = as.factor(house$Heating)
+house$CentralAir = as.factor(house$CentralAir)
+house$Electrical = as.factor(house$Electrical)
+house$Functional = as.factor(house$Functional)
+house$GarageFinish = as.factor(house$GarageFinish)
+house$GarageCond = as.factor(house$GarageCond)
+house$PavedDrive = as.factor(house$PavedDrive)
+house$Fence = as.factor(house$Fence)
+house$SaleType = as.factor(house$SaleType)
+house$SaleCondition = as.factor(house$SaleCondition)
+```
+Now that we've cleaned and factored our data we will review the data set to verify the removal of the incomplete data. Specifically, we'll see if we have anymore NA. Having found none, we will evaluate the correlation of our numerical variables, this is important because we don't want our predictor variables to suffer from multi-collinearity. Multi-collinearity is an issue that occurs when variables exert influence upon one another, or in statistical terms "are highly linearly related". This makes it hard to distinguish the effect that increasing only one variable (X~1~) will have on sales price, because if that variable(X~1~) is collinear with another variable(X~1~) we see that increasing the first variable (X~1~) will result in the other variable (X~2~) increasing as well. We evaluate this correlation below by producing the actual correlation value of the variables and by creating a correlation plot which is easier to see. In the correlation plot the darker color blue indicates a strong positive correlation between variables whereas the darker color orange/red indicates a strong negative correlation between the variables. After conducting this analysis we see that there is strong correlation between the following variables: 
+
+* 1st Floor Suface Area : Total Basement Surface
+* Total Rooms Above Ground: Grand Living Area
+* Fireplaces: Garage Area
+* Garage Area: Garage Cars
+
+Taking this into account we will remove the minumum amount of predictors we with the aim of reducing multi-collinearity and still keeping as much data as possible in the data set. The variables we have chosen to remove are the following: 
+
+* Total Basement Surface
+* Total Rooms Above Ground
+* Garage Area
+
+```{r More_Analysis, echo=FALSE}
+
+#collect the character variables
+cat_var<- names(house)[which(sapply(house, is.character))]
+#collect the vector levels
+vect_var<- names(house)[which(sapply(house, is.vector))]
+#Collect the numerical values
+numeric_var <- names(house)[which(sapply(house, is.numeric))]
+#Correlation plot of numeric values
+HouseCorrelation = cor(house[sapply(house, is.numeric)])
+library(corrplot)
+corrplot(HouseCorrelation, method = "ellipse")   
+
+```
+
+Now that we've done the analysis of the independent variables we need to analyze the dependent variables "Sales Price". Specifically we are testing to see if the distribution of this variable is normal. This means that the observations are spread out evenly and are not centered around a specific area/point. If the distribution is not normal it means that our residuals (erros) will be focused around a specific area. The model will systematically overestimate or underestimate sales price of homes within a certain range which we wish to avoid. As can be seen from the qq-plot, barplot of sales price, and the kernel density of sales price we do not have a normal distribution and thus need to transform the variable. We decided upon enabling a log transformation because it will fix the distribution and allow us to explain how the predictor variables will effect sales price as a percentage. It can be thought of as the percentage change in sales price will be affected by a one unit increase of a predictor variable.                 
+```{r Analysis, echo=FALSE}
+lm.fit<-lm(SalePrice~., data=house)
+
+#QQ plot to test for normality
+par(mfrow = c(1,2))
+qqnorm(house$SalePrice,main="Sale Price")
+qqline(house$SalePrice) ## adds the line to the plot
+house_salesPrice = table(house$SalePrice)
+barplot(house_salesPrice, main = "Sales Price Distribution", xlab = "Sales Price", ylab = "Number of Houses")
+SalesPrice_kernel = density(house$SalePrice)
+plot(SalesPrice_kernel, main = "Kernel Density of Sales Price", xlab = "Sales Price")
+
+#Change Sale Price to log of Sale Price
+log_SalePrice<-log(house$SalePrice)
+house<-cbind(house, log_SalePrice)
+house<-dplyr::select(house, -"SalePrice")
+#house<-house[c(-2919),]
+#next we split the data into the training and testing data 
+set.seed(2)
+tr.size = floor(0.5*nrow(house))
+tr.ind = sample(seq_len(nrow(house)), tr.size)
+house.tr =house[tr.ind,]
+house.te = house[!(rownames(house) %in% tr.ind),]
+house.te<-house.te[c(-1460),]
+
+X = model.matrix(house.tr$log_SalePrice~.,house.tr)[,-(length(house))]
+Y = house.tr$log_SalePrice
+```
+
+
+# Statistical Methods 
+
+Now that we've conducted our cleaning of the data we have decided to use two statistical methods for analysis. The methods are: 
+
+1. Lasso 
+2. Elastic-Net 
+
+## Lasso 
+Is used to estimate how multiple predictor variables will affect the sales price of a home which is very similar to multiple linear regression, however the difference is that this method will select the best variables to be included in the model. Normally the user has to select the variables they believe will be the most influential upon the data and typically experiment with the variables until the best model is found. This will take a long time, especially with the number of predictor variables we have in our data set, however lasso is unique in that it conducts variable selection. It does this by forcing the coefficients of "useless" variables to zero (meaning this variable has 0 effect on sales price) by assigning a penalty value to the coefficients.                
+
+## Elastic-Net       
+Elastic-net is a statistical method that combines the penalties of ridge regression and lasso. This means that it will perform predictor selection and regularization simultaneously. Regularization is a large word used to describe a process in which the model reduces parameters and shrinks the model to avoid overfitting. Regularization occurs within ridge regression and is necessary because it prevents the model from overfitting the data. This is similar to lasso with the exception that it doesn't remove the predictors complete/doesn't perform best variable selection.                    
+
+# Analysis Results 
+
+## Lasso 
+The Lasso method was used to train the data with a knn = 10 and $\alpha$ = 1. The optimal coefficient for the mean-square error ranged from 80 thru 20 as seen in graph. There were 66 coefficients identified to be used in the model. To train our data we will use the $\lambda$ = 0.01603 and the coefficients used from the first standard deviation cross validation method. Running this method on our testing data produced a MSE of 0.04861 and a $R^2$ of 49.69%. By using this model we can explain 49.69% of the variation in log sales price of a house. Not terrible, but not spectacular either; let’s evaluate how the elastic-net method performs next.
+
+```{r lasso, echo=FALSE, results='hide', message=FALSE}
+library('glmnet')
+x.BC <-model.matrix(house.tr$log_SalePrice~.,data=house.tr[,-length(house)], )
+x.TE<-model.matrix(house.te$log_SalePrice~.,data = house.te[,-length(house)],)
+x.BC<-x.BC[,(1:161)]
+x.TE<-x.TE[,(1:161)]
+y.BC = house.tr$log_SalePrice
+y.TE = house.te$log_SalePrice
+
+par(mfrow = c(1,2))
+lasso.BC =glmnet::glmnet(x.BC,(y.BC),alpha = 1,family ="gaussian")
+plot(lasso.BC,"lambda",xlab =expression(paste("log(",lambda,")")))
+
+cv.lasso.BC =glmnet::cv.glmnet(x.BC,(y.BC),alpha = 1,family = "gaussian")
+plot(cv.lasso.BC)
+coef.min =coef(cv.lasso.BC,s=cv.lasso.BC$lambda.min)
+coef.1se=coef(cv.lasso.BC, s=cv.lasso.BC$lambda.1se)
+names(coef.min[,1][coef.min[,1]!=0])[-1]
+names(coef.1se[,1][coef.1se[,1]!=0])[-1]
+
+#Optimal lamda, 1st standard deviation was used to assign lamda
+lamda_best<-cv.lasso.BC$lambda.1se
+lamda_best
+#best lamda is 0.005
+
+##BELOW WE TEST THE LASSO
+#lasso method for prediction
+lasso_model<-glmnet::glmnet(x.BC, y.BC,alpha=1, lambda = lamda_best)
+SalePrice_Lasso<-predict(lasso_model,newx=x.TE, s=lamda_best)
+
+#MSE for test
+Metrics::mse(y.TE, SalePrice_Lasso )
+#The MSE when testing the model is 0.04789
+#R2 for test
+caret::postResample( y.TE, SalePrice_Lasso)
+```
+## Elastic-Net   
+The Elastic-Net method will be used with an alpha = 0.5 and a knn = 10. The stopping criteria used will be based on the lowest mean square error. Based on the graphs, the best mse ranges from 80 to 40 coefficients of numerical values that differ from zero. The first standard deviation will be used to select the coefficients for this method. The lambda penalty used for this method is $\lambda$ = 0.005177. The training data produced an R^2= 51.86% and a MSE of 0.041 on the training data. The predictive model produced a $R^2$ = 46.44% on the test dataset and a MSE of 0.046. Based on both method, Elastic-Net produced slightly better results than the Lasso method. The results from the Elastic-Net method shows that 46.44% of the variability in the log sale price can attributed to the predictors chosen in the model. 
+```{r elastic-Net}
+
+enet.BC = glmnet::glmnet(x.BC,(y.BC),alpha = 0.5,family = "gaussian")
+cv.enet.bc = glmnet::cv.glmnet(x.BC,(y.BC),alpha = 0.5,
+family = "gaussian", type.measure = "mse")
+par(mfrow = c(1,2))
+plot(enet.BC,"lambda",xlab =expression(paste("log(",lambda,")")))
+plot(cv.enet.bc,xlab =expression(paste("log(",lambda,")")))
+
+
+
+coef.ml = coef(glm((y.BC) ~ x.BC, family = gaussian,
+maxit = 100))[-1]
+
+coef.lasso = coef(glmnet::glmnet(x.BC,y.BC, family = "gaussian", alpha = 0, lambda = cv.lasso.BC$lambda.min))[-1]
+coef.enet = coef(glmnet::glmnet(x.BC,y.BC, family = "gaussian", alpha = 0.5, lambda = cv.enet.bc$lambda.min))[-1]
+
+enet.cv = glmnet::cv.glmnet(x.BC, y.BC, family = "gaussian", alpha = 0.5, type.measure = "mse")
+enet.fit = glmnet::glmnet(x.BC, y.BC, alpha = 0.5, family = "gaussian")
+enet.predict = predict(enet.fit, s = enet.cv$lambda.1se, newx = x.TE)
+caret::postResample( y.TE, enet.predict)
+
+```
+# Conclusions 
+
+In conclusion we can see that the lasso regression method performed better than the elastic net method, however not by much. Our best model was only able to account for about 50% of the variation of log sales price in the homes in the data set, which if I'm potentially investing $150,000+ doesn't increase my confidence much. This doesn't mean our model is useless for current data but rather that is isn't helpful in explaining the sales price of a home that was sold in Ames, Iowa from 2006 to 2010. This could be for a variety of reasons, but we suspect that the time line of the data is the main reason as to why. If we recall home prices peaked in 2007, one year into our data set, and then subsequently fell by roughly 10% each year for the next three years. Considering this, it is likely that a home sold before the crash would be worth more than a home that was sold during the years after the crash (assuming both homes are nearly identical). Also, consider since the housing industry affects many markets the crash had subsequently brought down other markets as well resulting in an increase in unemployment, decrease in sales, profits, and in general a weak view of the economy overall. Taking this into account individuals likely no longer viewed homes as safe investments and deterred from investing in them, and that is a factor we do not have data and cannot be used to predict how sales prices would be affected.             
+
+# References 
+
+* https://www.worldpropertyjournal.com/real-estate-news/united-states/los-angeles-real-estate-news/real-estate-news-zillow-housing-data-for-2020-combined-housing-market-value-in-2020-us-gdp-china-gdp-rising-home-value-data-11769.php
+* https://fas.org/sgp/crs/misc/IF11327.pdf
+* https://www.statista.com/statistics/184902/homeownership-rate-in-the-us-since-2003/
+* https://www.statista.com/statistics/184487/us-new-privately-owned-housing-units-started-since-2000/
+* https://www.nar.realtor/research-and-statistics/housing-statistics/existing-home-sales
+* https://fred.stlouisfed.org/series/ASPUS
+
+
+

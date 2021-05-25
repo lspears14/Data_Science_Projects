@@ -1,0 +1,407 @@
+---
+title: "Diabetes Midterm Project"
+author: "Lia S."
+date: "4/1/2021"
+output: pdf_document
+
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+set.seed(1)
+library(ISLR)
+library(readr)
+library(MASS)
+library(gbm) #Needed for Boosting
+library(e1071)#Needed for support vector
+library(corrplot)#Needed for heatmap
+library(ggplot2)
+library(mice)
+library(lattice)
+library(caret)
+library(gridExtra)
+library(grid)
+library(mgcv)
+library(gam)
+
+
+```
+
+## Introduction{.css_class}
+The health of this country has been on the decline since the turn of the century. According to the Center for Disease Control, one in ten Americans have diabetes and one in three are pre-diabetic. By comparison, only 4.4% of the population was diagnosed with diabetes in 2000. This trend has steadily increased with each passing year. Countless studies have been conducted to identify which characteristic traits an individual might have that correlates to the development of diabetes. One such study is the analysis of the Pima Indian tribe dataset. The Pima Indians tribe is a native american tribe that lives in southern regions of the present-day Arizona. This tribe has been used to study the relationship between a person's medical history and its role in the development of diabetes since 1965 due to its limited genetic and environmental variability. In 2015, this tribe was recorded to have the highest rate of diabetes compared to other population groups across the globe. In my report I will perform a statistical analysis on the Pima diabetes dataset provided by the UCI Machine Learning Repository to investigate if a person's medical history can predict the onset of diabetes. My analysis will show that by using the variables from this dataset I am able to create a model that has a prediction accuracy rate around 74% of predicting whether a person will develop diabetes.   
+
+## Dataset Structure{.css_class}  
+   
+The Pima Indian dataset has nine variables and 768 observations. The predictors are Pregnancies, Glucose, Blood Pressure, Skin Thickness, Insulin, Body Mass Index (BMI), Diabetes Pedigree Function, and Age. The response variable is Outcome and is listed in the dataset as a binary value where "1" means the patient has diabetes and "0" otherwise. On first inspection of the dataset there are several observations that have a measurement of zero to indicate a missing value. The multivariate imputation for multivariate missing data method will be used to replace the missing values. This method estimates the missing value by referencing the remaining observation to make a “best guess” of the missing value. This is preferred over the deletion of the observation that will reduce the dataset size. A box plot of the range of the variables can be seen below in graph 1. A quick over of the predictors is presented next. All predictor variables are numerical values. The pregnancies variable has a range from 0 to 17. The glucose variable is measured in milligrams per deciliter and has a range of 44mg to 199mg. This can be compared to the normal range for glucose that should be between 70mg to 99mg when fasting. Blood pressure is measured in millimeters of mercury (mmHg) and has a range of 24mmHg to 122mmHg. Based on the American Heart Association statistics a normal blood pressure reading is below 120/80 mmHg. The measurements from skin thickness have a range of 7mm to 99 mm. Insulin reading are done using the micro units per milliliter (mcU/ml or mIU/ml) with an average measurement at 8.4 mIU/ml for women and 8.6 mIU/ml for men. Skin thickness and Insulin appears to have several outliers in their respective boxplots, but the readings fall within the second standard deviation of the mean and will be view as appropriate with the possibility of human error in recording the data. The variable age has a range from 21 years old to 81 years old. The variable outcome reveals that 34.9% or 268 out of 768 of the observation shows to have diabetes. The correlation between the variables is less than 0.69, therefore strong correlation between variables is not a concern in this analysis.
+
+
+```{r Basic_Stat, results='hide'}
+ 
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(results = "hide")
+knitr::opts_chunk$set(message = FALSE)
+
+diabetes <- read.csv("C:/Users/ltyle/Documents/UTSA/STA 6973 ADV Topics in Statist Learning/Project/diabetes_2.csv")
+
+
+#using mice to compute missing values
+
+imp<-mice(diabetes)
+cimp<-complete(imp)
+diabetes<-complete(imp)
+
+
+```
+
+```{r Showplots}
+knitr::opts_chunk$set(echo = FALSE)
+
+#pairs(diabetes)
+diabetescor<-diabetes[,-9] #remove the outcome variable
+diabetescorr = cor(diabetescor[sapply(diabetescor, is.numeric)])
+#corrplot(diabetescorr, method = "ellipse") 
+
+```
+     
+
+```{r plots}
+
+
+
+#Since we have 768 obs we will split to 384
+
+tr.size = floor(0.5*nrow(diabetes))
+tr.ind = sample(seq_len(nrow(diabetes)), tr.size)
+diabetes.tr =diabetes[tr.ind,]
+diabetes.te = diabetes[-tr.ind,]
+
+```
+
+## Statistical Learning Method{.css_class}    
+   
+The statistical methods that will be used for this analysis is the linear discriminant analysis, logistic regression with generalized additive models, and support vector machine. The linear discriminant analysis strength is that it is best built for classification analysis for two categorical class. This method will separate the best class of predictors that are related to the dependent variable Outcome. The LDA method will be used as a baseline reference for other advance methods in machine learning that will be explored. The next method that will be used is logistic regression with generalized additive models. This method is of particular interest due to its ability to create individual splines based on the degrees of freedom given to each function and creating localized regression fits with knots. This is a benefit for our dataset because, as I will show, one or two predictors may prefer curvature in its fit. The versatility of being able to add different functions for each predictor in our model improves the fit of the model by creating a smooth curve line between the observation. Thus, creating better separation in our prediction. The last method that will be investigated is the support vector machine method. This method strength comes from the multidimensional hyperplane that separates the observation into distinguishes groups per response and the allowance of a margin of error. The support vectors and margin will be customized with the tuning of parameters epsilon, gamma, and cost to allow for different flexibility of the fit. Since we are dealing with a categorical response variable and numerical predictor variables, these methods have been chosen to produce the best results. All results will be transformed into a confusion matrix to compare each method prediction accuracy.   
+
+ 
+```{r cLDA, results='hide', warning=FALSE, message= FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+lda.fit=lda(Outcome~., data = diabetes.tr)
+lda.fit
+
+
+
+
+library(caret)
+
+# how good was our prediction on the training data?
+lda.pred=predict(lda.fit, diabetes.tr)
+lda.class=lda.pred$class
+conf.tr = confusionMatrix(lda.pred$class, as.factor(diabetes.tr$Outcome), positive = "1")
+conf.tr$table
+
+table(lda.class, diabetes.tr$Outcome)
+mean(lda.class==diabetes.tr$Outcome)
+mean(lda.class!=diabetes.tr$Outcome)
+```
+
+## Analysis Results{.css_class}   
+
+### Linear Discrimient Analysis   
+   
+To begin the analysis, the data is randomly divided into two groups, the training dataset will have 50% of the data and the testing/validation dataset will have the remaining 50% of the data. I will first discuss the results from the linear discriminant analysis. The LDA method will use all the predictors listed above for its analysis. The prior probabilities of the data show that 65.11% of the data do not have diabetes and 34.89% have diabetes. The results from the model created from the training dataset has an accuracy rate of 80.2% and a misclassification error rate at 19.8%. The confusion table shown for this method shows the distribution of misclassification where 37 observation were classified as having diabetes when they did not, and 77 observation were classified as not having diabetes when the opposite was true. After using the prediction method with our testing dataset then comparing the outcome, the accuracy rate has decreased to 73.43%. The misclassification error rate is now 26.57% The confusion table shows that the prediction correctly classified 282 observation and misclassified 102 observation. This is about a 36% of the observation that was misclassified during the validation phase. Investigating further, the sensitivity rate is 0.5522 which means that this method correctly classified an observation with diabetes 55.22% of the time. The specificity rate is 0.832 which means that this model corrects classified an observation as not having diabetes 83.2% of the time. The Precision rate is 0.6379 which means that of all the predictive positive classes (i.e., has diabetes), our model was able to correctly predict 63.79% of them. For comparison with the other models, the F1 score which measures accuracy of precision and recall is 0.592. The F1 score is the harmonic mean of precision between precision and recall.  Overall, this method does a better job at predicting whether someone does not have diabetes then a person who does. Focusing on our main objective, predicting diabetes, the model from the LDA method produces prediction slightly better than flipping a coin. An average sensitivity rate is a concern for this model.  
+
+
+
+
+```{r LDApred, message=FALSE, warning=FALSE}
+#Using the fit to predict on testing data
+lda.pred.1=predict(lda.fit, diabetes.te)
+names(lda.pred)
+
+
+#creating the confusion matrix for test
+conf.te = confusionMatrix(lda.pred.1$class, as.factor(diabetes.te$Outcome), positive = "1")
+
+# create the confusion matrix
+summary.conf = rbind(conf.tr$overall, conf.te$overall)
+rownames(summary.conf) = c("Train", "Test")
+summary.conf
+conf.te$byClass
+```
+
+```{r lda_plot,  results="asis"}
+
+print(knitr::kable(summary.conf, caption = "LDA prediction of accuracy table"))
+
+```
+
+
+
+### Generalized Additive Model
+
+The next method to investigate is the logistic regression with generalized additive model. Using a generalized model and the family option as binomial, significant variables were selected for the GAM model. The variables that will be used for GAM are Pregnancies, Glucose, Skin Thickness, and BMI. The other predictors will not be used due to being equivalent to zero. Analyzing the polynomial significance of these predictors show that the BMI is significant up to squared regression, while the remaining predictors are only significant as a linear function. Cross validation was used to select the appropriate degree of freedom to create smoothing splines for the variables Glucose, Skin Thickness, and BMI. The resulting plots from the GAM regression shows wide variances at the ends of every predictors indicating that our variables will have a large variance at the end points. Upon training our model the accuracy rate is at 81.77% with a misclassification error rate around 18.3%. The confusion matrix shows 25 observation were classified as not having diabetes when the opposite was true, and 45 observation classified as having diabetes when they did not. After using the prediction method with our testing data set then comparing the outcome, the accuracy rate has decreased to 75.26% and a misclassification rate of 24.8% The confusion matrix shows that the prediction correctly classified 289 observation and misclassified 95 observation. Upon further analysis, the sensitivity rate is 61.19% that the model predicted a patient as having diabetes and was correct. The specificity rate is 82.8% that the model correctly predicted a patient as not having diabetes and was correct. The precision rate of "how often the model predicts correctly" is 65.25%. The F1 score which measures accuracy of precision and recall is 0.633 which will be used to compare with the other models. In summary, the GAM model does a performs better at classification then the LDA method. Focusing on predicting diabetes, this model prediction accuracy is around two-thirds and can screen out patience without diabetes at a rate of 82% without further testing.
+
+
+```{r LogRegGAM}}
+
+library(gam)
+
+attach(diabetes)
+glm.fit <-glm(Outcome~ ., family = "binomial", data = diabetes, subset = tr.ind)
+summary.glm(glm.fit)
+
+#significant factors: Pregnancies, Glucose, BloodPressure, DiabetesPedigreeFunction
+
+glm.fit <-glm(Outcome~ Glucose+Pregnancies+SkinThickness+BMI, family = "binomial", data = diabetes, subset = tr.ind)
+summary.glm(glm.fit)
+
+glm.fit <-glm(Outcome~ Glucose+ BMI+ DiabetesPedigreeFunction+Pregnancies, family = "binomial", data = diabetes, subset = tr.ind)
+summary.glm(glm.fit)
+#plot(glm.fit)
+#Fitting the first poly to 
+# fit.1<-glm(Outcome~ poly(Glucose,4), family = "binomial", data = diabetes, subset = tr.ind)
+# summary(fit.1)
+
+#ploting the third degree for BMI
+fit.1<-glm(I(Outcome==1)~ poly(BMI,2), family = "binomial", data = diabetes, subset = tr.ind)
+preglims=range(BMI)
+preg.grid=seq(from=preglims[1], to=preglims[2])
+preds=predict(fit.1, newdata = list(BMI=preg.grid), se=TRUE)
+se.bands=cbind(preds$fit+2*preds$se.fit, preds$fit-2*preds$se.fit)
+
+
+fit.2<-glm(I(Outcome==1)~ poly(BMI,4), family = "binomial", data = diabetes, subset = tr.ind)
+summary(fit.2)
+fit.3<-glm(I(Outcome==1)~ poly(Pregnancies,4), family = "binomial", data = diabetes, subset = tr.ind)
+summary(fit.3)
+fit.4<-glm(I(Outcome==1)~ poly(SkinThickness,4), family = "binomial", data = diabetes, subset = tr.ind)
+summary(fit.4)
+fit.5<-glm(I(Outcome==1)~ poly(Glucose,4), family = "binomial", data = diabetes, subset = tr.ind)
+summary(fit.5)
+
+anova(fit.1, fit.2,fit.3, fit.4, fit.5)
+
+# #finding the best smoothing spile
+fit.12=smooth.spline(Glucose, I(Outcome==1) )
+glucose.df<-fit.12$df
+fit.13=smooth.spline(Pregnancies, I(Outcome==1))
+preg.df<-fit.13$df
+fit.16=smooth.spline(SkinThickness, I(Outcome==1))
+ST.df<-fit.16$df
+
+#using poly
+
+gam.1=gam(I(Outcome==1)~ns(BMI,3)+s(Glucose, df=2)+s(Pregnancies, df=8)+ ns(Age, 2)+s(SkinThickness, df=3), data = diabetes, subset = tr.ind, family="binomial")
+
+#prediction for training
+preds.tr=predict(gam.1, newdata = diabetes.tr)
+gam.table.tr<-as.data.frame(preds.tr)
+i<-1
+for(i in 1:nrow(gam.table.tr))
+{     
+if (gam.table.tr[i,1]<0){
+  gam.table.tr[i,2]<-0
+  }
+  else
+  {
+    gam.table.tr[i,2]<-1}
+  }
+conf.gam.tr = confusionMatrix(as.factor(gam.table.tr[,2]), as.factor(diabetes.tr$Outcome), positive = "1")
+
+
+#prediction for test
+preds.te=predict(gam.1, newdata = diabetes.te)
+gam.table.te<-as.data.frame(preds.te)
+i<-1
+for(i in 1:nrow(gam.table.te))
+{
+  if (gam.table.te[i,1]<0){
+  gam.table.te[i,2]<-0
+  }
+
+  else 
+  {
+    gam.table.te[i,2]<-1
+  }
+}
+
+```
+
+```{r gam_table}
+#table creation
+conf.gam.te = confusionMatrix(as.factor(gam.table.te[,2]), as.factor(diabetes.te$Outcome), positive = '1')
+
+summary.conf = rbind(conf.gam.tr$overall, conf.gam.te$overall)
+rownames(summary.conf) = c("Train", "Test")
+summary.conf
+mean(gam.table.te[,2]==diabetes.te$Outcome)
+mean(gam.table.te[,2]!=diabetes.te$Outcome)
+conf.gam.te$byClass
+conf.gam.te$table
+
+```
+   
+       
+       
+```{r gam_plot,  results="asis"}
+
+print(knitr::kable(summary.conf, caption = "GAM with Smoothing spline prediction of accuracy table"))
+
+```
+   
+### Support Vector Machine
+
+To end the analysis section, our focus will shift to the support vector machine method. All predictors will be used for this method. The svm model is set to classification on the response variable and the kernel is set to radial basis. The radial basis kernel performed better on the training data than polynomial and was thus chosen. I first tune the method to generate the cost, gamma, and epsilon values. The results for cost are 1, gamma is 0.125 and epsilon is 0.1. The gamma value will provide curvature to the model and the cost will be the allowed error. A cross validation of k = 5 was used to train the data. As can be seen on the sample svm plots for diabetes, most of the responses overlap in the false (0) category. This is expected and is similar to the finding from our previous methods with the sensitivity rate of 0.55. The accuracy rate for the training model is of 82.81%. There are 220 observation that are in our hyperplane as noted in the number of support vector results. This is 57.3% of the observation in the training dataset. After using this model on the validation/testing data and prediction the accuracy rate decreases to 74.73%. A total of 287 observation were correctly classified. The misclassification error rate is 25.3% and a total of 99 observation were misclassified. The sensitivity rate is 0.5746, thus our model correctly classifies a person who has diabetes 57.46% of the time. The specificity rate is 0.84, thus our model correctly classifies a person who does not have diabetes 84% of the time. The precision rate is 0.6581, which means the model predicted correctly 65.81% of the time. To compare this model with the other the F1 value which measures accuracy of precision and recall is 0.6135.
+
+
+
+```{r SVC}
+
+
+#Support vector method
+dat=data.frame(x=diabetes.tr[,-9], y=as.factor(diabetes.tr$Outcome))
+
+#tune
+svm.tune2<-best.svm(Outcome~., data=diabetes.tr)
+
+out=svm(y~., data=dat, kernel="radial", cost=svm.tune2[["cost"]], gamma = svm.tune2[["gamma"]], scale = TRUE, type = "C-classification", cross = 5)
+summary(out)
+
+
+#plot ROC 
+fitted.svm=attributes(predict(out, dat, decision.values = TRUE))$decision.values
+
+
+
+
+#plot(out, dat, formula=out)
+table(out$fitted, dat$y)
+mean(out$fitted == dat$y)
+
+#how did the training do
+dat.tr=data.frame(x=diabetes.tr[,-9], y=as.factor(diabetes.tr$Outcome))
+pred.tr=predict(out, newdata = dat.tr)
+
+svm.conf.tr = confusionMatrix(data=pred.tr, reference = as.factor(diabetes.tr$Outcome), positive = "1")
+
+#now trying a test data. 
+dat.te=data.frame(x=diabetes.te[,-9], y=as.factor(diabetes.te$Outcome))
+pred.te=predict(out, newdata = dat.te)
+
+table(predict=pred.te, truth=dat.te$y)
+
+svm.conf.te = confusionMatrix(data=pred.te, reference = as.factor(diabetes.te$Outcome), positive = "1")
+svm.conf.te$byClass
+summary.conf = rbind(svm.conf.tr$overall, svm.conf.te$overall)
+rownames(summary.conf) = c("Train", "Test")
+summary.conf
+
+
+
+```
+
+
+
+```{r svm_plot,  results="asis"}
+
+print(knitr::kable(summary.conf, caption = "SVM prediction of accuracy table"))    
+
+
+```
+
+
+
+
+## Summary
+
+After comparing all models, the preferred model for use is the Generalized Additive Model. This model performed equally to SVM in many ways and performed better than the LDA method. The F1 score which measure the test accuracy using both precision and recall are close to each other with a .02 difference. Additionally, the analysis showed that the model did a better job at correctly predicting individuals that did not have diabetes at a higher rate of 82% accuracy than predicting individuals who had diabetes at a rate of 61% in our validation stage. The precision rate it is also the highest among all models. The decision to use this model will depend greatly in its implementation. This model is recommended to be used as a screening tool to rule out non-diabetes concerns, then further testing can be used to confirm a diabetes diagnosis. The accuracy and sensitivity rate are an area of concern, especially in the medical field where a “bad” diagnosis could be the difference in life or death. Improvements to the accuracy of the model could be made by acquiring more observational data and adding more medical predictors to the model such as weight, height, eating habits, and social status. These additional features have been shown to have a significant role in determining the health of an individual. For a study related to medical condition, it is also recommended that a large number of observations be included in any study. 
+
+
+## References    
+Newman, D.J. & Hettich, S. & Blake, C.L. & Merz, C.J. (1998). UCI Repository of machine learning databases [http://www.ics.uci.edu/~mlearn/MLRepository.html]. Irvine, CA: University of California, Department of Information and Computer Science.
+
+Brian D. Ripley (1996), Pattern Recognition and Neural Networks, Cambridge University Press, Cambridge.
+
+Grace Whaba, Chong Gu, Yuedong Wang, and Richard Chappell (1995), Soft Classification a.k.a. Risk Estimation via Penalized Log Likelihood and Smoothing Spline Analysis of Variance, in D. H. Wolpert (1995), The Mathematics of Generalization, 331-359, Addison-Wesley, Reading, MA.
+
+Genetic Studies of the Etiology of Type 2 Diabetes in Pima Indians
+Leslie J. Baier, Robert L. Hanson
+Diabetes May 2004, 53 (5) 1181-1186; DOI: 10.2337/diabetes.53.5.1181
+
+Dissecting the Etiology of Type 2 Diabetes in the Pima Indian Population
+Ewan R. Pearson
+Diabetes Dec 2015, 64 (12) 3993-3995; DOI: 10.2337/dbi15-0016
+
+“National Diabetes Statistics Report, 2020.” Centers for Disease Control and Prevention, Centers for Disease Control and Prevention, 11 Feb. 2020,    
+
+
+## Graphs and Summary Data{#anchor}
+
+
+```{r tablelda, include=FALSE, results='markup'}
+conf.tr$table
+conf.te$table
+corrplot(diabetescorr, method = "ellipse")
+```
+
+
+
+
+
+
+```{r conlda}
+
+#ROC and AUC for lda
+
+library(ROCR)
+pred.roc = prediction(lda.pred$posterior[,2], diabetes.te$Outcome)
+perf.roc = performance(pred.roc,"tpr","fpr")
+pred.auc = performance(pred.roc,"auc")
+AUCpred <- pred.auc@y.values[[1]]
+par(mfrow=c(1,1))
+
+plot(perf.roc,main = "LDA ROC",col = "red", xlab = c( "AUC= ",AUCpred ))
+abline(0,1,col = "blue",lty = 2)   
+corrplot(diabetescorr, method = "ellipse")
+```
+
+
+```{r boxplots}
+par(mfrow=c(2,4), "lheight")
+# #Show boxplots of dataset, regroup boxplots as (Preg, Degreeofhistor), (G)lucose, blood pressure, BMI, 
+# boxplot(diabetes[,c(4,8)], horizontal = TRUE, col = "blue", fill = "lightblue")
+# boxplot(diabetes[,c(2,3)], horizontal = TRUE, col = "blue")
+
+#par(mfrow=c(2,2))
+#histogram(diabetes[,9], horizontal = TRUE, xlab = names(diabetes[9]), col = "blue")
+
+boxplot(diabetes[,8], horizontal = TRUE, xlab = names(diabetes[8]), col = "blue")
+title("Boxplots of variables")
+boxplot(diabetes[,7], horizontal = TRUE, xlab = names(diabetes[7]), col = "blue")
+boxplot(diabetes[,4], horizontal = TRUE, xlab = names(diabetes[4]), col = "blue")
+boxplot(diabetes[,3], horizontal = TRUE, xlab = names(diabetes[3]), col = "blue")
+boxplot(diabetes[,2], horizontal = TRUE, xlab = names(diabetes[2]), col = "blue")
+boxplot(diabetes[,5], horizontal = TRUE, xlab = names(diabetes[5]), col = "blue")
+boxplot(diabetes[,6], horizontal = TRUE,xlab = names(diabetes[6]),  col = "blue")
+boxplot(diabetes[,1], horizontal = TRUE, xlab = names(diabetes[1]), col = "blue")
+
+```
+```{r gamplots}
+par(mfrow=c(2,3))
+
+plot(gam.1, se=TRUE,col="blue")
+title(main = "\n GAM Plots",outer =T)
+lines(preg.grid ,preds$fit ,lwd =2, col ="blue")
+matlines(preg.grid ,se.bands ,lwd =1, col ="blue",lty =3)
+
+```
+
+```{r svmplots}
+par(mfrow=c(2,2), "lheight")
+#plot(out, dat, x.DiabetesPedigreeFunction~x.BMI)
+plot(out, dat, x.Pregnancies~x.Age)
+#plot(out, dat, x.Insulin~x.BloodPressure)
+
+```
