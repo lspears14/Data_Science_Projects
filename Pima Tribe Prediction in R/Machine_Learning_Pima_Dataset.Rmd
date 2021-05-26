@@ -42,7 +42,7 @@ knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(results = "hide")
 knitr::opts_chunk$set(message = FALSE)
 
-diabetes <- read.csv("C:/Users/ltyle/Documents/UTSA/STA 6973 ADV Topics in Statist Learning/Project/diabetes_2.csv")
+diabetes <- read.csv("diabetes_2.csv")
 
 
 #using mice to compute missing values

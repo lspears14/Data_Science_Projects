@@ -54,7 +54,7 @@ knitr::opts_chunk$set(message = FALSE)
 library(ISLR)
 library(stats)
 library(dplyr)
-house <- read.csv("C:/Users/ltyle/Documents/UTSA/STA-6923/Project/house.csv")
+house <- read.csv("house.csv")
 dim(house)
 names(house)
 
